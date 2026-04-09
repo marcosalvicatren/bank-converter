@@ -1,0 +1,142 @@
+[
+  {
+    "id": "R001",
+    "nome": "Versamento contanti",
+    "parole_chiave": ["VERSAMENTO CONTANTI"],
+    "tipo_movimento": "entrata",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R002",
+    "nome": "Commissioni bancarie",
+    "parole_chiave": ["COMMISSIONI", "COMMISSIONI ADDEBITI", "COMMISSIONI SERVIZIO"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R003",
+    "nome": "Imposta di bollo",
+    "parole_chiave": ["IMPOSTA DI BOLLO", "RECUPERO IMPOSTA DI BOLLO"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R004",
+    "nome": "Competenze e oneri bancari",
+    "parole_chiave": ["COMPETENZE", "ONERI", "COMPETENZE - ONERI", "COMPETENZE - INTERESSI"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R005",
+    "nome": "Pagamento rata finanziamento",
+    "parole_chiave": ["PAGAMENTO RATA FINANZIAMENTO", "MUTUO CHIROGRAFARIO", "MUTUO IPOTECARIO"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R006",
+    "nome": "Pagamento tributi / F24",
+    "parole_chiave": ["PAGAMENTO TRIBUTI VARI", "PAGAMENTO BOLLETTINO PAGOPA"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R007",
+    "nome": "Accredito NEXI / POS",
+    "parole_chiave": ["ACCREDITO NEXI", "ACCREDITO BANCOMAT", "ACCREDITO AMERICAN EXPRESS"],
+    "tipo_movimento": "entrata",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R008",
+    "nome": "Accredito portafoglio SBF",
+    "parole_chiave": ["ACCREDITO LOTTI SBF", "PORTAFOGLIO COMMERCIALE"],
+    "tipo_movimento": "entrata",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R009",
+    "nome": "Effetti e disposizioni pagati",
+    "parole_chiave": ["PAGAMENTO EFFETTI E DISPOSIZIONI"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R010",
+    "nome": "Effetti impagati / insoluti",
+    "parole_chiave": ["EFFETTI E DISPOSIZIONI IMPAGATI", "DISPOSIZIONI INSOLUTE"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R011",
+    "nome": "Ricezione bonifico (entrata)",
+    "parole_chiave": ["ORDINE E CONTO", "RICEZIONE BONIFICO"],
+    "tipo_movimento": "entrata",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R012",
+    "nome": "Vostra disposizione (uscita bonifico)",
+    "parole_chiave": ["VOSTRA DISPOSIZIONE"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R013",
+    "nome": "Addebiti SDD utenze",
+    "parole_chiave": ["ADDEBITI PREAUTORIZZATI SDD-UTENZE", "ADD. PREAUTORIZZATI SDD-UTENZE"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  },
+  {
+    "id": "R014",
+    "nome": "Addebiti SDD commerciali",
+    "parole_chiave": ["ADDEBITI PREAUTORIZZATI SDD-COMMERCIALE", "ADD. PREAUTORIZZATI SDD-COMMERCIALE"],
+    "tipo_movimento": "uscita",
+    "causale": "",
+    "conto_dare": "",
+    "conto_avere": "",
+    "attiva": true
+  }
+]
