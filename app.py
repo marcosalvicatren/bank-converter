@@ -244,24 +244,44 @@ with tab_pdf:
         if si is not None:
             c4.metric("Saldo iniziale", f"€ {si:,.2f}")
 
-        # Anteprima tabella
-        with st.expander("📋 Anteprima movimenti estratti", expanded=True):
-            _rows = []
-            for tx in txs[:50]:
-                _rows.append({
-                    "Data": tx['data_op'],
-                    "Entrata €": f"{tx['entrata']:,.2f}" if tx.get('entrata') else "",
-                    "Uscita €":  f"{tx['uscita']:,.2f}"  if tx.get('uscita')  else "",
-                    "Descrizione": tx['descrizione'][:80],
-                    "Causale": tx.get('causale',''),
-                    "C/Dare":  tx.get('conto_dare',''),
-                    "C/Avere": tx.get('conto_avere',''),
-                })
-            import pandas as pd
-            df = pd.DataFrame(_rows)
-            st.dataframe(df, use_container_width=True, height=400)
-            if len(txs) > 50:
-                st.caption(f"... e altri {len(txs)-50} movimenti")
+        # Tabella editabile passo 1
+        import pandas as pd
+        st.markdown("#### ✏️ Movimenti — compila o correggi Causale, C/Dare, C/Avere")
+        st.caption("Le colonne Data, Importi e Descrizione sono in sola lettura. Clicca **Salva modifiche** dopo aver compilato.")
+        _rows = []
+        for tx in txs:
+            _rows.append({
+                "Data":        tx['data_op'],
+                "Entrata €":   float(tx['entrata']) if tx.get('entrata') else 0.0,
+                "Uscita €":    float(tx['uscita'])  if tx.get('uscita')  else 0.0,
+                "Descrizione": tx['descrizione'][:80],
+                "Causale":     tx.get('causale',''),
+                "C/Dare":      tx.get('conto_dare',''),
+                "C/Avere":     tx.get('conto_avere',''),
+            })
+        df1 = pd.DataFrame(_rows)
+        edited_df1 = st.data_editor(
+            df1,
+            use_container_width=True,
+            height=420,
+            hide_index=True,
+            column_config={
+                "Data":        st.column_config.TextColumn("Data",        disabled=True, width="small"),
+                "Entrata €":   st.column_config.NumberColumn("Entrata €", disabled=True, format="%.2f", width="small"),
+                "Uscita €":    st.column_config.NumberColumn("Uscita €",  disabled=True, format="%.2f", width="small"),
+                "Descrizione": st.column_config.TextColumn("Descrizione", disabled=True, width="large"),
+                "Causale":     st.column_config.TextColumn("Causale",  width="small"),
+                "C/Dare":      st.column_config.TextColumn("C/Dare",   width="small"),
+                "C/Avere":     st.column_config.TextColumn("C/Avere",  width="small"),
+            },
+            key="editor_p1"
+        )
+        if st.button("💾 Salva modifiche", type="primary", key="save_p1"):
+            for i, tx in enumerate(st.session_state.transactions):
+                tx['causale']     = str(edited_df1.at[i,'Causale']).strip()
+                tx['conto_dare']  = str(edited_df1.at[i,'C/Dare']).strip()
+                tx['conto_avere'] = str(edited_df1.at[i,'C/Avere']).strip()
+            st.success("✅ Modifiche salvate. Puoi ora procedere al Passo 2 o generare l'XML.")
 
         # Download Excel
         st.markdown("---")
@@ -333,25 +353,47 @@ with tab_revisione:
         else:
             st.success("✅ Tutti i campi obbligatori sono compilati. Puoi procedere al Passo 3.")
 
-        # Tabella movimenti
+        # Tabella editabile passo 2
         import pandas as pd
-        _rows = []
-        for i, tx in enumerate(txs, 1):
+        st.markdown("#### ✏️ Revisione — modifica Causale, C/Dare, C/Avere e salva")
+        _rows2 = []
+        for tx in txs:
             ok = bool(tx.get('causale') and tx.get('conto_dare') and tx.get('conto_avere'))
-            _rows.append({
-                "#": i,
-                "Data":       tx['data_op'],
-                "Entrata €":  f"{tx.get('entrata') or tx.get('dare_az',''):,.2f}" if (tx.get('entrata') or tx.get('dare_az')) else "",
-                "Uscita €":   f"{tx.get('uscita') or tx.get('avere_az',''):,.2f}"  if (tx.get('uscita') or tx.get('avere_az'))  else "",
+            _rows2.append({
+                "Data":        tx['data_op'],
+                "Entrata €":   float(tx.get('entrata') or tx.get('dare_az') or 0),
+                "Uscita €":    float(tx.get('uscita')  or tx.get('avere_az') or 0),
                 "Descrizione": tx['descrizione'][:80],
-                "Causale":    tx.get('causale',''),
-                "C/Dare":     tx.get('conto_dare',''),
-                "C/Avere":    tx.get('conto_avere',''),
-                "✓":          "✅" if ok else "⚠️",
+                "Causale":     tx.get('causale',''),
+                "C/Dare":      tx.get('conto_dare',''),
+                "C/Avere":     tx.get('conto_avere',''),
+                "✓":           "✅" if ok else "⚠️",
             })
-        df = pd.DataFrame(_rows)
-        st.dataframe(df, use_container_width=True, height=450,
-                     column_config={"✓": st.column_config.TextColumn(width="small")})
+        df2 = pd.DataFrame(_rows2)
+        edited_df2 = st.data_editor(
+            df2,
+            use_container_width=True,
+            height=450,
+            hide_index=True,
+            column_config={
+                "Data":        st.column_config.TextColumn("Data",        disabled=True, width="small"),
+                "Entrata €":   st.column_config.NumberColumn("Entrata €", disabled=True, format="%.2f", width="small"),
+                "Uscita €":    st.column_config.NumberColumn("Uscita €",  disabled=True, format="%.2f", width="small"),
+                "Descrizione": st.column_config.TextColumn("Descrizione", disabled=True, width="large"),
+                "Causale":     st.column_config.TextColumn("Causale",  width="small"),
+                "C/Dare":      st.column_config.TextColumn("C/Dare",   width="small"),
+                "C/Avere":     st.column_config.TextColumn("C/Avere",  width="small"),
+                "✓":           st.column_config.TextColumn("✓",        disabled=True, width="small"),
+            },
+            key="editor_p2"
+        )
+        if st.button("💾 Salva modifiche", type="primary", key="save_p2"):
+            for i, tx in enumerate(st.session_state.transactions):
+                tx['causale']     = str(edited_df2.at[i,'Causale']).strip()
+                tx['conto_dare']  = str(edited_df2.at[i,'C/Dare']).strip()
+                tx['conto_avere'] = str(edited_df2.at[i,'C/Avere']).strip()
+            st.success("✅ Modifiche salvate. Puoi ora procedere al Passo 3.")
+            st.rerun()
 
         st.caption(f"Totale: {n_total} movimenti  |  ✅ {n_ok} completi  |  ⚠️ {n_missing} incompleti")
 
