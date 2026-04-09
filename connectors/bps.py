@@ -32,7 +32,8 @@ def extract(pdf_source):
     DATE_RE   = re.compile(r'^\d{2}/\d{2}/\d{4}$')
     AMOUNT_RE = re.compile(r'^\d{1,3}(?:\.\d{3})*,\d{2}$')
 
-    SKIP_KW = [
+    # Parole da ignorare nelle righe di continuazione
+    SKIP_KW = set([
         'Data','Valuta','Movimenti','Dare','Avere','Descrizione','operazione',
         'Saldo','iniziale','finale','Totale','movimenti','Giacenza','media','annua',
         'BBAN','IBAN','BIC','SWIFT','Nazionali','Internazionali','Bank','Indentifier',
@@ -56,17 +57,22 @@ def extract(pdf_source):
         'soggetta','attività','direzione','coordinamento',
         'messaggio','protegge','riservatezza','Suoi','dati','personali',
         'poiché','impedisce','lettura','trasparenza',
-        '#StayLocalBeGlobal','SPORTELLO','UNICO','INTERNAZIONALIZZAZIONE',
-        'PRODOTTI','BANCARI','FINANZIARI','FORMAZIONE','EVENTI','SERVIZI',
-        'EUROPA','COLLABORAZIONI','SCANSIONA','QR-CODE','INFO',
-        'businessclass@popso.it','tel.','0342','528','783',
-        'www.popso.it/estero','https://businessschool.popso.it/',
+    ])
+
+    # Testi che indicano header/footer da saltare completamente
+    HEADER_KW = [
+        'Data Valuta Movimenti','Saldo iniziale','Saldo finale','Totale movimenti',
+        'Giacenza media','BBAN','IBAN','Pagina','Situazione al','Conto Corrente',
+        'Filiale di','LIRFO001','POSOIT22','Banca Popolare','BPER',
+        'IMPOSTA DI BOLLO ASSOLTA','Si rammenta','BANCA POPOLARE DI SONDRIO',
+        'Fondata nel','Codice Fiscale','Partita IVA',
+        'SPORTELLO','INTERNAZIONALIZZAZIONE','Documento numero',
+        'messaggio protegge','trasparenza',
     ]
 
     saldo_iniziale = saldo_finale = None
     transactions = []
 
-    # Supporto sia path che file-like
     open_ctx = pdfplumber.open(pdf_source) if isinstance(pdf_source, str) else pdfplumber.open(pdf_source)
 
     with open_ctx as pdf:
@@ -86,15 +92,24 @@ def extract(pdf_source):
                 if m2:
                     saldo_finale = _parse_amount(m2.group(2))
 
-            # Calibrazione colonne
+            # Calibrazione colonne dalla riga intestazione
+            # Layout BPS: Data(~23) Valuta(~79) Dare(~180-200) Avere(~270-300) Desc(~343+)
             dare_x_center = avere_x_center = None
             for w in words:
-                if w['text'] == 'Dare'  and w['top'] < 120: dare_x_center  = (w['x0']+w['x1'])/2
-                if w['text'] == 'Avere' and w['top'] < 120: avere_x_center = (w['x0']+w['x1'])/2
+                if w['text'] == 'Dare'  and w['top'] < 400: dare_x_center  = (w['x0']+w['x1'])/2
+                if w['text'] == 'Avere' and w['top'] < 400: avere_x_center = (w['x0']+w['x1'])/2
             if dare_x_center  is None: dare_x_center  = 220
             if avere_x_center is None: avere_x_center = 310
-            mid_da       = (dare_x_center + avere_x_center) / 2
-            desc_x_start = avere_x_center + 60
+
+            mid_da = (dare_x_center + avere_x_center) / 2
+
+            # desc_x_start: le descrizioni iniziano DOPO la colonna Avere.
+            # Dal PDF misuriamo x≈343. Usiamo avere_x + 30 (più permissivo).
+            desc_x_start = avere_x_center + 20
+
+            # Soglia X massima per le colonne numeriche:
+            # un importo oltre desc_x_start è testo della descrizione, non un importo
+            amt_x_max = avere_x_center + 15
 
             # Raggruppa per riga
             rows_dict = defaultdict(list)
@@ -107,51 +122,73 @@ def extract(pdf_source):
 
             def is_header_or_skip(rw):
                 txt = row_text_full(rw)
-                return any(k in txt for k in [
-                    'Data','Valuta','Movimenti','Dare','Avere','Descrizione operazione',
-                    'Saldo iniziale','Saldo finale','Totale movimenti','Giacenza media',
-                    'BBAN','IBAN','BIC','Pagina','Situazione al','Conto Corrente',
-                    'Filiale di','LIRFO001','POSOIT22','Banca Popolare','BPER',
-                    'IMPOSTA DI BOLLO','Si rammenta','BANCA POPOLARE DI SONDRIO',
-                    'Fondata nel','Codice Fiscale','Partita IVA',
-                    'SPORTELLO','UNICO PER','INTERNAZIONALIZZAZIONE',
-                    'Documento numero','messaggio protegge','trasparenza',
-                ])
+                return any(k in txt for k in HEADER_KW)
 
             def split_row(rw):
+                """
+                Divide la riga in: data_val, dare_words, avere_words, desc_text
+                
+                Regola chiave: una data è "data operazione" solo se la sua
+                posizione X è nella zona colonna Data (<= 120).
+                Date con x > 120 fanno parte della descrizione.
+                """
                 sorted_w = sorted(rw, key=lambda x: x['x0'])
-                dare_words = avere_words = []
-                desc_words = []
-                dates_found = []
+                dare_words  = []
+                avere_words = []
+                desc_words  = []
+                data_val    = None
+
                 for w in sorted_w:
-                    cx = (w['x0']+w['x1'])/2
+                    cx = (w['x0'] + w['x1']) / 2
                     t  = w['text']
+
                     if DATE_RE.match(t):
-                        dates_found.append((cx, t))
-                    elif AMOUNT_RE.match(t):
-                        if cx < mid_da: dare_words  = dare_words  + [t]
-                        else:           avere_words = avere_words + [t]
+                        if w['x0'] <= 120:
+                            # È una data di operazione o valuta (prima o seconda colonna)
+                            if data_val is None:
+                                data_val = t   # prima data = data operazione
+                            # seconda data = valuta, ignorata
+                        else:
+                            # Data dentro la descrizione (es. "dal 01/10/2025 al 31/12/2025")
+                            desc_words.append(t)
+                    elif AMOUNT_RE.match(t) and cx <= amt_x_max:
+                        # Importo nelle colonne dare/avere
+                        if cx < mid_da:
+                            dare_words.append(t)
+                        else:
+                            avere_words.append(t)
                     elif cx >= desc_x_start:
+                        # Testo descrizione
                         desc_words.append(t)
-                dates_found.sort(key=lambda x: x[0])
-                data_val = dates_found[0][1] if dates_found else None
+
                 return data_val, dare_words, avere_words, ' '.join(desc_words)
 
             current_tx = None
             for top, rw in sorted_rows:
-                if is_header_or_skip(rw): continue
+                if is_header_or_skip(rw):
+                    continue
                 txt_full = row_text_full(rw)
-                if not txt_full.strip(): continue
+                if not txt_full.strip():
+                    continue
+
                 data_val, dare_ws, avere_ws, desc_inline = split_row(rw)
 
                 if data_val:
-                    if current_tx: transactions.append(current_tx)
+                    # Salva transazione precedente
+                    if current_tx:
+                        transactions.append(current_tx)
+
                     uscita  = _parse_amount(dare_ws[0])  if dare_ws  else None
                     entrata = _parse_amount(avere_ws[0]) if avere_ws else None
-                    if uscita and not entrata and not desc_inline:
-                        current_tx = None; continue
+
+                    # Riga senza importo e senza descrizione = riga spuria, scarta
+                    if not uscita and not entrata and not desc_inline:
+                        current_tx = None
+                        continue
+
                     try:    d_fmt = datetime.strptime(data_val,'%d/%m/%Y').strftime('%Y-%m-%d')
                     except: d_fmt = data_val
+
                     current_tx = {
                         'data_op'    : d_fmt,
                         'uscita'     : uscita,
@@ -163,29 +200,43 @@ def extract(pdf_source):
                         'numero_doc' : '',
                     }
                 else:
-                    if current_tx and desc_inline:
-                        current_tx['descrizione'] = (current_tx['descrizione']+' '+desc_inline).strip()
-                    elif current_tx:
-                        extra = ' '.join(
+                    # Riga di continuazione: tutto il testo non-skip va alla descrizione
+                    if current_tx:
+                        extra_words = [
                             w['text'] for w in sorted(rw, key=lambda x: x['x0'])
                             if w['text'] not in SKIP_KW
-                               and not DATE_RE.match(w['text'])
+                               and not DATE_RE.match(w['text'])   # date già gestite in split_row
                                and not AMOUNT_RE.match(w['text'])
-                        )
+                               and (w['x0'] + w['x1'])/2 >= desc_x_start  # solo zona descrizione
+                        ]
+                        # Includi anche date nella zona descrizione
+                        date_in_desc = [
+                            w['text'] for w in sorted(rw, key=lambda x: x['x0'])
+                            if DATE_RE.match(w['text']) and w['x0'] > 120
+                        ]
+                        extra = ' '.join(extra_words + date_in_desc)
                         if extra:
-                            current_tx['descrizione'] = (current_tx['descrizione']+' '+extra).strip()
+                            current_tx['descrizione'] = (current_tx['descrizione'] + ' ' + extra).strip()
 
             if current_tx:
                 transactions.append(current_tx)
 
-    # Pulizia e deduplicazione
+    # Rimuovi righe senza importo (residui spurii)
+    transactions = [tx for tx in transactions if tx.get('entrata') or tx.get('uscita')]
+
+    # Pulizia descrizioni (prima della dedup, così usiamo la descrizione completa)
     for tx in transactions:
         tx['descrizione'] = re.sub(r'\s+', ' ', tx['descrizione']).strip()[:255]
 
-    seen = set(); unique = []
+    # Deduplicazione: rimuove solo exact duplicates da overlap tra pagine
+    # Usa descrizione COMPLETA ([:255]) per non scartare righe diverse come
+    # le due RECUP. SPESE COMUNICAZIONI con rapporti diversi (1344320 / 1349014)
+    seen = set()
+    final = []
     for tx in transactions:
-        key = (tx['data_op'], tx['uscita'], tx['entrata'], tx['descrizione'][:60])
+        key = (tx['data_op'], tx['uscita'], tx['entrata'], tx['descrizione'])
         if key not in seen:
-            seen.add(key); unique.append(tx)
+            seen.add(key)
+            final.append(tx)
 
-    return unique, saldo_iniziale, saldo_finale
+    return final, saldo_iniziale, saldo_finale
