@@ -22,7 +22,7 @@ def _riga(parent, conto, importo, desc, sep='.'):
 
 def generate_xml(transactions, output_path,
                  xsd_filename="SchemaImportazionePrimaNotaV2.xsd",
-                 dec_sep='.'):
+                 dec_sep='.', doc_prefix="MOV"):
     """
     Genera il file XML a partire dalle transazioni.
     Ritorna lista di avvisi (campi mancanti).
@@ -56,7 +56,7 @@ def generate_xml(transactions, output_path,
         _sub(dg, "CausaleContabile",  causale)
         ndoc = tx.get('numero_doc', '').strip()
         if not ndoc:
-            ndoc = f"BPS-{tx['data_op'].replace('-','')}-{i:03d}"
+            ndoc = f"{doc_prefix}-{tx['data_op'].replace('-','')}-{i:03d}"
         _sub(dg, "NumeroDocumento",   ndoc)
         _sub(dg, "DataDocumento",     tx['data_op'])
         _sub(dg, "DataRegistrazione", tx.get('data_reg') or tx['data_op'])
@@ -86,7 +86,7 @@ def generate_xml(transactions, output_path,
 
 def generate_xml_bytes(transactions,
                        xsd_filename="SchemaImportazionePrimaNotaV2.xsd",
-                       dec_sep='.'):
+                       dec_sep='.', doc_prefix="MOV"):
     """
     Come generate_xml ma ritorna (xml_string, errori) senza scrivere su file.
     Usato da Streamlit per il download diretto.
@@ -94,7 +94,7 @@ def generate_xml_bytes(transactions,
     import tempfile, os
     with tempfile.NamedTemporaryFile(suffix='.xml', delete=False) as tmp:
         tmp_path = tmp.name
-    errori = generate_xml(transactions, tmp_path, xsd_filename, dec_sep)
+    errori = generate_xml(transactions, tmp_path, xsd_filename, dec_sep, doc_prefix)
     with open(tmp_path, 'r', encoding='utf-8') as f:
         xml_str = f.read()
     os.unlink(tmp_path)
