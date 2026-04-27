@@ -16,6 +16,10 @@ def get_name():
     return "American Express (Carta Oro / Business)"
 
 
+def get_doc_prefix():
+    return "AMEX"
+
+
 def _parse_amount(s):
     s = str(s).strip().replace('\xa0', '').replace(' ', '')
     s = re.sub(r'^[+\-]', '', s).strip()
