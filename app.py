@@ -470,7 +470,10 @@ with tab_xml:
                         if 'avere_az' not in t: t['avere_az'] = t.get('uscita')
                         txs_norm.append(t)
 
-                    xml_str, avvisi = generate_xml_bytes(txs_norm, xsd_fname, dec_sep)
+                    xml_str, avvisi = generate_xml_bytes(
+                        txs_norm, xsd_fname, dec_sep,
+                        doc_prefix=getattr(connector, 'get_doc_prefix', lambda: 'MOV')()
+                    )
 
                     st.success(f"✅ XML generato con {len(righe_da_usare)} movimenti.")
 
